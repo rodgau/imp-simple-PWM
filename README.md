@@ -12,5 +12,6 @@ Nothing fancy here. You can use this to control the speed of a DC motor or the b
 - 1x/second, results are sent to server.log
 - 20x/second, results are streamed out serial port for monitoring inside your terminal app
 - each function runs in seperate timer loop
+
 ### Agent-side Functionality  ###
 None.
