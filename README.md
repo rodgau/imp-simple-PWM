@@ -1,4 +1,4 @@
-## Welcome to imp-simple-motor ##
+## Welcome to imp-simple-PWM ##
 
 
 This is an introductory [electric imp](http://electricimp.com) project to set a PWM output according to a potentiometer's reading.
