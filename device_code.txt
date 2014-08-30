@@ -1,0 +1,95 @@
+/** Simple DC Motor Controller
+ * 
+ * Potentiometer controls PWM output.
+ * POT read 100x/second via imp.wakeup() timer.
+ * This loop also:
+ *  1) calc duty cycle
+ *  2) updates PWM duty cycle, and 
+ *  3) updates global status variables.
+ * Additional independant timer loops handle other functions.
+ * Pot and duty cycle logged to server.log and out serial port as a "dashboard".
+ * This can be monitored in a terminal app.
+ * 
+ * Revision History:
+ *   Builds:
+ * 040: added serial port logging
+ * 047: changed pins to match those of my PID project
+ * 
+*/
+
+// alias pin7 as motor1 for PWM output at 5000 Hz pulse frequency
+motor1 <- hardware.pin7;
+motor1.configure( PWM_OUT, 1.0/5000.0, 0.0 );
+
+// alias pin2 analog input as pot1
+pot1 <- hardware.pin2;
+pot1.configure(ANALOG_IN);
+
+// alias pin8, pin9 as UART1289 for Tx and Rx of serial data
+serial <- hardware.uart1289;
+
+// dashboard "gauges" represented by these tables
+gaugePot1 <- 0;
+gaugeDutyCycle1 <- 0;
+
+// function to read pot and update motor PWM
+function getPot() {
+	
+	local rawPot = pot1.read(); // 0-65535
+	local dutyCycle = rawPot / 65535.0;
+	motor1.write( dutyCycle );
+	
+	//update dashboard
+	gaugePot1 = rawPot;
+	gaugeDutyCycle1 = dutyCycle;
+	
+	// register function to fire 100x/second
+	imp.wakeup(0.01, getPot);
+}
+
+// function to update server log with POT and Duty Cycle (1x/second)
+function logStatus() {
+	
+	server.log( "POT reads: " + gaugePot1 + ". Duty cycle: " + (gaugeDutyCycle1 * 100.0) + "%" );
+	imp.wakeup( 1.0, logStatus )
+	
+}
+
+// function to send dashboard data out serial port for monitoring and logging (20x/second)
+function dashboardOut() {
+
+/*  local str = format ( "[POT reads: %u. Duty cycle: %u%%]\r\n",
+											 gaugePot1,
+											 (gaugeDutyCycle1 * 100.0) );
+*/  
+	local str = format ( "%u,%u\r",
+											 gaugePot1,
+											 (gaugeDutyCycle1 * 100.0) );
+	serial.write( str );
+	
+	// register function to fire 20x/second
+	imp.wakeup( 0.05, dashboardOut );
+	
+}
+
+
+// function to echo received serial data to server log (just for fun)
+function serialData() {
+	
+	// Read the UART for data sent by PC
+	local b = serial.read();
+	while(b != -1) {
+		// As long as UART read value is not -1, we're getting data
+		local str = format("SERIAL ECHO: %c", b);
+		server.log( str );
+		b = serial.read();
+	}
+	
+}
+serial.configure(9600, 8, PARITY_NONE, 1, NO_CTSRTS, serialData);
+
+
+// start the loops
+logStatus();
+dashboardOut();
+getPot();
